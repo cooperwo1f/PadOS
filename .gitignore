@@ -1,0 +1,10 @@
+.DS_Store
+.idea
+*.log
+tmp/
+.dir_locals.el
+
+*.py[cod]
+*.egg
+build
+htmlcov

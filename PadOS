@@ -1,4 +1,61 @@
 #!/usr/bin/env python3
 
-if __name__ == "__main__":
-    print("TEST")
+import os
+import socket
+from lib.util import pressed, current_colours
+
+pad_socket_path = "/tmp/launchpad.socket"
+
+
+def connect(socket_path):
+    try:
+        os.unlink(socket_path)
+
+    except OSError:
+        if os.path.exists(socket_path):
+            raise
+
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(socket_path)
+    srv.listen(1)
+
+    con, adr = srv.accept()
+    current_colours(con)
+    return srv, con
+
+
+if __name__ == '__main__':
+    srv, con = connect(pad_socket_path)
+
+    try:
+        while True:
+            try:
+                data = con.recv(len("00N"))
+
+                if len(data) == 0:
+                    raise BrokenPipeError
+
+                d = data.decode()
+
+                y = d[0]
+                x = d[1]
+                p = False
+
+                if d[2] == 'P':
+                    p = True
+
+                pressed(con, x, y, p)
+
+
+            except BrokenPipeError as e:
+                con.close()
+                os.unlink(pad_socket_path)
+                srv.close()
+
+                srv, con = connect(pad_socket_path)
+                continue
+
+    finally:
+        con.close()
+        os.unlink(pad_socket_path)
+        srv.close()

@@ -14,6 +14,7 @@
 
 const char* SOCKET_FILE = "/tmp/launchpad.socket";
 int thread_running = 1;
+int running = 1;
 
 typedef struct _args_t {
     snd_seq_t* seq;
@@ -62,6 +63,23 @@ col_update_t recv_decode(char* recv, size_t len) {
     }
 
     return update;
+}
+
+int clear_all(snd_seq_t* seq, int port) {
+    char data[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x18, 0x0E, 0x00, 0xF7 };
+    snd_seq_event_t ev;
+
+    snd_seq_ev_clear(&ev);
+    snd_seq_ev_set_source(&ev, port);
+    snd_seq_ev_set_subs(&ev);
+    snd_seq_ev_set_direct(&ev);
+
+    snd_seq_ev_set_sysex(&ev, sizeof(data), data);
+
+    if (snd_seq_event_output(seq, &ev) < 0) { return 1; }
+    if (snd_seq_drain_output(seq) < 0) { return 1; }
+
+    return 0;
 }
 
 int update_colour(snd_seq_t* seq, col_update_t upd, int port) {
@@ -173,9 +191,7 @@ void *thread_update(void *_args) {
     return NULL;
 }
 
-int main(int argc, char** argv) {
-    int running = 1;
-
+int main(int argc, char* argv[]) {
     snd_seq_client_info_t* lp_info;
     snd_seq_t* seq;
 
@@ -266,18 +282,19 @@ int main(int argc, char** argv) {
                 continue;
             }
 
-            else if (upd.type > 0) {
-                running = 0;
-                thread_running = 0;
-                continue;
+            else if (upd.type == 1) {
+                clear_all(seq, port);
             }
 
-            if (update_colour(seq, upd, port) != 0) {
-                continue;
+            else {
+                if (update_colour(seq, upd, port) != 0) {
+                    continue;
+                }
             }
         }
     }
 
-    pthread_exit(&t_id);
+    pthread_join(t_id, NULL);
+    snd_config_update_free_global();
     return 0;
 }

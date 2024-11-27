@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import socket
-from lib.util import pressed, current_colours
+import subprocess
+
+from pythonosc import udp_client
+from lib.util import pressed, current_colours, clear_all
 
 pad_socket_path = "/tmp/launchpad.socket"
 
@@ -25,6 +29,21 @@ def connect(socket_path):
 
 
 if __name__ == '__main__':
+    ip = None
+    port = 7001
+
+    if len(sys.argv) == 1:
+        print("Supply IP and port [7001 default]")
+        sys.exit(1)
+
+    if len(sys.argv) == 2:
+        ip = sys.argv[1]
+
+    if len(sys.argv) == 3:
+        ip = sys.argv[1]
+        port = sys.argv[2]
+
+    osc = udp_client.SimpleUDPClient(ip, int(port))
     srv, con = connect(pad_socket_path)
 
     try:
@@ -44,7 +63,7 @@ if __name__ == '__main__':
                 if d[2] == 'P':
                     p = True
 
-                pressed(con, x, y, p)
+                pressed(osc, con, x, y, p)
 
 
             except BrokenPipeError as e:
